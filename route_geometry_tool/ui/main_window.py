@@ -67,6 +67,20 @@ class MainWindow(tk.Tk):
             btn_frame, text="导出CSV", command=self._export_csv
         ).pack(side=tk.LEFT, padx=2)
 
+        # 构建按钮：独立一行，始终可见。
+        # 不放进 PanedWindow——input_table 用了 expand=True 会占满 pane，
+        # 把按钮挤出 pane 可见区而被裁掉。
+        build_bar = tk.Frame(self)
+        build_bar.pack(side=tk.TOP, fill=tk.X, padx=8, pady=(2, 2))
+        tk.Button(
+            build_bar,
+            text="🔧 构建线路",
+            bg="#4CAF50",
+            fg="white",
+            font=('Microsoft YaHei', 10, 'bold'),
+            command=self._build_route,
+        ).pack(side=tk.LEFT, padx=4)
+
         # 主区域：垂直 PanedWindow，三个面板可拖动分隔条调整高度。
         # weight 越大越占空间——图形区域权重最高，输入/查询固定不弹。
         self._paned = ttk.PanedWindow(self, orient=tk.VERTICAL)
@@ -79,15 +93,6 @@ class MainWindow(tk.Tk):
 
         self.input_table = InputTable(input_frame)
         self.input_table.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=4)
-
-        tk.Button(
-            input_frame,
-            text="🔧 构建线路",
-            bg="#4CAF50",
-            fg="white",
-            font=('Microsoft YaHei', 10, 'bold'),
-            command=self._build_route,
-        ).pack(side=tk.TOP, pady=4)
 
         # 2) 查询面板（weight=0：按内容高度）—— Task 7 实现，缺失则占位
         if QueryPanel is not None:
