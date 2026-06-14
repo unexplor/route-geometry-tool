@@ -93,7 +93,7 @@ class QueryPanel(tk.LabelFrame):
             tree_container,
             columns=RESULT_COLUMNS,
             show='headings',
-            height=6,
+            height=4,
             selectmode='browse',
         )
         for col, header, width in zip(

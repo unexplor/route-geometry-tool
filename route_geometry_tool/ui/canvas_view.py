@@ -29,10 +29,10 @@ SEGMENT_NAMES = {
 }
 
 # 画布尺寸与边距
-_CANVAS_HEIGHT = 300
+_CANVAS_HEIGHT = 500
 _FIT_MARGIN = 40           # 适应窗口时的四周边距（像素）
-_DEFAULT_CANVAS_W = 600    # 画布尚未渲染时的默认宽度
-_DEFAULT_CANVAS_H = 300    # 画布尚未渲染时的默认高度
+_DEFAULT_CANVAS_W = 900    # 画布尚未渲染时的默认宽度
+_DEFAULT_CANVAS_H = 500    # 画布尚未渲染时的默认高度
 
 # 悬停命中阈值：鼠标距线路 20 像素内即视为命中
 _HIT_PIXELS = 20

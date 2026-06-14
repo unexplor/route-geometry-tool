@@ -40,7 +40,7 @@ class InputTable(tk.Frame):
             tree_container,
             columns=COLUMNS,
             show='headings',
-            height=10,
+            height=6,
             selectmode='browse',
         )
         for col, header, width in zip(COLUMNS, HEADERS, COL_WIDTHS):

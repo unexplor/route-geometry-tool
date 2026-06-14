@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 
 from route_geometry_tool.core.models import SegmentType
 from route_geometry_tool.core.query import RouteQuery
@@ -33,13 +33,16 @@ class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("线路平面几何计算工具")
-        self.geometry("900x750")
-        self.minsize(800, 600)
+        self.geometry("1100x900")
+        self.minsize(950, 720)
 
         self.query_engine: RouteQuery | None = None
         self.query_panel = None
         self.canvas_view = None
+        self._paned: ttk.PanedWindow | None = None
         self._setup_ui()
+        # 渲染后显式定位分隔条，让图形区域占窗口大部分
+        self.after(50, self._place_sashes)
 
     # ------------------------------------------------------------------
     # UI 构建
@@ -64,9 +67,15 @@ class MainWindow(tk.Tk):
             btn_frame, text="导出CSV", command=self._export_csv
         ).pack(side=tk.LEFT, padx=2)
 
-        # 交点数据 LabelFrame
-        input_frame = tk.LabelFrame(self, text="交点数据（双击编辑）")
-        input_frame.pack(side=tk.TOP, fill=tk.BOTH, padx=8, pady=4)
+        # 主区域：垂直 PanedWindow，三个面板可拖动分隔条调整高度。
+        # weight 越大越占空间——图形区域权重最高，输入/查询固定不弹。
+        self._paned = ttk.PanedWindow(self, orient=tk.VERTICAL)
+        paned = self._paned
+        paned.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=8, pady=4)
+
+        # 1) 交点数据（weight=0：按内容高度，不弹性增长）
+        input_frame = tk.LabelFrame(paned, text="交点数据（双击编辑）")
+        paned.add(input_frame, weight=0)
 
         self.input_table = InputTable(input_frame)
         self.input_table.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -80,35 +89,69 @@ class MainWindow(tk.Tk):
             command=self._build_route,
         ).pack(side=tk.TOP, pady=4)
 
-        # 状态行（蓝色）
-        self.status_var = tk.StringVar(value="就绪")
-        tk.Label(
-            self,
-            textvariable=self.status_var,
-            fg="blue",
-            anchor=tk.W,
-        ).pack(side=tk.TOP, fill=tk.X, padx=8, pady=(4, 8))
-
-        # 查询面板：Task 7 实现，缺失则占位
+        # 2) 查询面板（weight=0：按内容高度）—— Task 7 实现，缺失则占位
         if QueryPanel is not None:
-            self.query_panel = QueryPanel(self)
-            self.query_panel.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=8, pady=4)
+            self.query_panel = QueryPanel(paned)
+            paned.add(self.query_panel, weight=0)
         else:
-            placeholder = tk.LabelFrame(self, text="查询")
-            placeholder.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=8, pady=4)
+            placeholder = tk.LabelFrame(paned, text="查询")
+            paned.add(placeholder, weight=0)
             tk.Label(
                 placeholder,
                 text="查询面板待实现",
                 fg="gray",
             ).pack(side=tk.TOP, pady=20)
 
-        # 图形绘制面板：Task 8 实现，缺失则占位
+        # 3) 图形绘制（weight=4：弹性占大头）—— Task 8 实现，缺失则占位
         if CanvasView is not None:
-            self.canvas_view = CanvasView(self)
-            self.canvas_view.pack(side=tk.TOP, fill=tk.BOTH, padx=10, pady=5, expand=True)
+            self.canvas_view = CanvasView(paned)
+            paned.add(self.canvas_view, weight=4)
         else:
             self.canvas_view = None
-            tk.Label(self, text="图形绘制待实现").pack()
+            placeholder2 = tk.LabelFrame(paned, text="图形")
+            paned.add(placeholder2, weight=1)
+            tk.Label(placeholder2, text="图形绘制待实现").pack()
+
+        # 设置各窗格的最小高度，防止拖动时压没
+        try:
+            paned.paneconfigure(input_frame, minsize=180)
+            if QueryPanel is not None:
+                paned.paneconfigure(self.query_panel, minsize=160)
+            if self.canvas_view is not None:
+                paned.paneconfigure(self.canvas_view, minsize=300)
+        except tk.TclError:
+            pass
+
+        # 状态行（蓝色，底部）
+        self.status_var = tk.StringVar(value="就绪")
+        tk.Label(
+            self,
+            textvariable=self.status_var,
+            fg="blue",
+            anchor=tk.W,
+        ).pack(side=tk.BOTTOM, fill=tk.X, padx=8, pady=(4, 8))
+
+    def _place_sashes(self):
+        """渲染后显式定位 PanedWindow 的两条分隔条。
+
+        ttk.PanedWindow 的 ``weight`` 只在"有剩余空间"时生效，而输入表格
+        与查询面板的固有高度往往已经占满窗口，导致图形区域被压扁。这里
+        在窗口布局完成后按比例强制设置 sashpos：输入约 22%、查询约 22%、
+        图形约 56%，让线路平面图拿到窗口大部分高度。
+        """
+        if self._paned is None:
+            return
+        try:
+            self.update_idletasks()
+            total = self._paned.winfo_height()
+            if total < 100:
+                # 尚未完成布局，稍后重试
+                self.after(80, self._place_sashes)
+                return
+            self._paned.sashpos(0, int(total * 0.24))   # 输入 / 查询 分界
+            self._paned.sashpos(1, int(total * 0.46))   # 查询 / 图形 分界
+        except tk.TclError:
+            pass
 
     # ------------------------------------------------------------------
     # 构建线路
