@@ -16,6 +16,12 @@ try:
 except ImportError:  # pragma: no cover - Task 7 之前 QueryPanel 不存在
     QueryPanel = None  # type: ignore[assignment]
 
+# CanvasView 由 Task 8 提供；尚未实现时优雅降级为占位标签。
+try:
+    from route_geometry_tool.ui.canvas_view import CanvasView  # type: ignore
+except ImportError:  # pragma: no cover - Task 8 之前 CanvasView 不存在
+    CanvasView = None  # type: ignore[assignment]
+
 
 class MainWindow(tk.Tk):
     """应用主窗口。
@@ -32,6 +38,7 @@ class MainWindow(tk.Tk):
 
         self.query_engine: RouteQuery | None = None
         self.query_panel = None
+        self.canvas_view = None
         self._setup_ui()
 
     # ------------------------------------------------------------------
@@ -95,6 +102,14 @@ class MainWindow(tk.Tk):
                 fg="gray",
             ).pack(side=tk.TOP, pady=20)
 
+        # 图形绘制面板：Task 8 实现，缺失则占位
+        if CanvasView is not None:
+            self.canvas_view = CanvasView(self)
+            self.canvas_view.pack(side=tk.TOP, fill=tk.BOTH, padx=10, pady=5, expand=True)
+        else:
+            self.canvas_view = None
+            tk.Label(self, text="图形绘制待实现").pack()
+
     # ------------------------------------------------------------------
     # 构建线路
     # ------------------------------------------------------------------
@@ -120,6 +135,9 @@ class MainWindow(tk.Tk):
                 self.query_panel, 'set_query_engine'
             ):
                 self.query_panel.set_query_engine(self.query_engine)
+
+            if self.canvas_view is not None:
+                self.canvas_view.set_data(segments, self.query_engine)
         except Exception as exc:  # noqa: BLE001 - 面向用户的兜底
             self.query_engine = None
             self.status_var.set(f"构建失败：{exc}")
