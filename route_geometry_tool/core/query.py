@@ -175,15 +175,28 @@ class RouteQuery:
         return self._make_result(seg.start_mileage + s, point, seg.theta)
 
     def _query_transition(self, s: float, seg: Segment) -> QueryResult:
+        # 正向缓和曲线（ZH→HY）：段起点即曲率 0 端，clothoid 的弧长参数 l = s。
+        # 反向缓和曲线（YH→HZ）：段起点是曲率 1/R 端，曲率 0 端是 HZ，
+        #   而 clothoid_global 的 l 从曲率 0 端量起，故 l = ls - s；
+        #   且其返回的切线沿 l 增加方向（HZ→YH，逆里程），需 +π 才是里程方向。
+        if seg.is_forward:
+            l = s
+            angle_offset = 0.0
+        else:
+            l = seg.ls - s
+            angle_offset = math.pi
+
         point, angle = clothoid_global(
-            s,
+            l,
             seg.ls,
             seg.radius,
             seg.base_point,
             seg.base_angle,
             seg.turn_sign,
         )
-        return self._make_result(seg.start_mileage + s, point, angle)
+        return self._make_result(
+            seg.start_mileage + s, point, angle + angle_offset
+        )
 
     def _query_circular(self, s: float, seg: Segment) -> QueryResult:
         point, angle = circular_point(

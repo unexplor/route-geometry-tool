@@ -150,13 +150,17 @@ class RouteBuilder:
             t2 = (R + p2) * math.tan(alpha / 2.0) + m2
 
             # Control points.
+            # ZH 在 JD 后方（沿入射方向退 T1）：JD - T1·d_in
+            # HZ 在 JD 前方（沿出射方向进 T2）：JD + T2·d_out
+            #   ZH 与 HZ 相对 JD 的方向相反——ZH 朝前一交点，
+            #   HZ 朝下一交点。这里 HZ 曾误用减号导致跑到 JD 后方。
             zh_point = Point(
                 jd.x - t1 * math.cos(theta_in),
                 jd.y - t1 * math.sin(theta_in),
             )
             hz_point = Point(
-                jd.x - t2 * math.cos(theta_out),
-                jd.y - t2 * math.sin(theta_out),
+                jd.x + t2 * math.cos(theta_out),
+                jd.y + t2 * math.sin(theta_out),
             )
 
             if l1 > 0:
