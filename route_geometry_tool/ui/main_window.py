@@ -185,7 +185,9 @@ class MainWindow(tk.Tk):
                 self.query_panel.set_query_engine(self.query_engine)
 
             if self.canvas_view is not None:
-                self.canvas_view.set_data(segments, self.query_engine)
+                self.canvas_view.set_data(
+                    segments, self.query_engine, junctions=junctions
+                )
         except Exception as exc:  # noqa: BLE001 - 面向用户的兜底
             self.query_engine = None
             self.status_var.set(f"构建失败：{exc}")

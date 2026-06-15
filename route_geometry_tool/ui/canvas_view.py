@@ -52,6 +52,7 @@ class CanvasView(tk.LabelFrame):
     def __init__(self, parent):
         super().__init__(parent, text="线路平面图", padx=5, pady=5)
         self.segments: list[Segment] = []
+        self.junctions: list = []   # 交点(JD)列表，用于标注交点位置
         self.query_engine: RouteQuery | None = None
         self.tooltip: tk.Toplevel | None = None
         self._offset_x = 0.0
@@ -106,10 +107,21 @@ class CanvasView(tk.LabelFrame):
     # ------------------------------------------------------------------
     # 外部接口
     # ------------------------------------------------------------------
-    def set_data(self, segments: list[Segment], query_engine: RouteQuery):
-        """注入线元与查询引擎，自动适应窗口并重绘。"""
+    def set_data(self, segments, query_engine, junctions=None):
+        """注入线元、查询引擎与交点，自动适应窗口并重绘。
+
+        Parameters
+        ----------
+        segments : list[Segment]
+            有序线元序列。
+        query_engine : RouteQuery
+            里程查询引擎（用于沿线采样绘制与悬停提示）。
+        junctions : list[JunctionPoint], optional
+            交点列表。用于在图上标注 JD 交点位置（PDF 要求）。
+        """
         self.segments = list(segments)
         self.query_engine = query_engine
+        self.junctions = list(junctions) if junctions else []
         if self.segments:
             self._fit_view()
         self._draw()
@@ -146,6 +158,10 @@ class CanvasView(tk.LabelFrame):
             ys.append(seg.start_point.y)
             xs.append(seg.end_point.x)
             ys.append(seg.end_point.y)
+        # 交点(JD)也纳入包围盒，确保交点标注不会落在视图外
+        for jd in self.junctions:
+            xs.append(jd.x)
+            ys.append(jd.y)
 
         min_x, max_x = min(xs), max(xs)
         min_y, max_y = min(ys), max(ys)
@@ -252,6 +268,20 @@ class CanvasView(tk.LabelFrame):
             end_cx, end_cy - 12, text='终点', fill='#B71C1C',
             font=('Microsoft YaHei', 9, 'bold'),
         )
+
+        # 交点(JD)标注：PDF 要求"标注交点位置"。
+        # JD 是虚拟交点（不在路线上），用菱形+编号标注，与线元区分。
+        for idx, jd in enumerate(self.junctions):
+            jx, jy = self._world_to_canvas(jd.x, jd.y)
+            # 菱形标记
+            self.canvas.create_polygon(
+                jx, jy - 5, jx + 5, jy, jx, jy + 5, jx - 5, jy,
+                fill='#9C27B0', outline='#4A148C',
+            )
+            self.canvas.create_text(
+                jx, jy + 14, text=f'JD{idx}', fill='#4A148C',
+                font=('Microsoft YaHei', 8, 'bold'),
+            )
 
     def _draw_segment(self, seg: Segment):
         """沿线元采样若干点并连成平滑折线。"""
