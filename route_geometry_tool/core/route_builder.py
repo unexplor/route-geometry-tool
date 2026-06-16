@@ -12,7 +12,12 @@ from __future__ import annotations
 import math
 from typing import Optional
 
-from route_geometry_tool.core.geometry import azimuth, clothoid_global, determine_turn
+from route_geometry_tool.core.geometry import (
+    azimuth,
+    circular_point,
+    clothoid_global,
+    determine_turn,
+)
 from route_geometry_tool.core.models import (
     CurveParams,
     JunctionPoint,
@@ -183,6 +188,22 @@ class RouteBuilder:
             yh_mileage = hy_mileage + ly
             hz_mileage = yh_mileage + l2
 
+            # 圆心 / 圆弧起角：圆曲线段（_generate_curve_segments）与 QZ 曲中点
+            # 共用同一个圆心，保证 QZ 严格落在所绘圆弧上。
+            theta_hy = theta_in + turn_sign * beta1
+            center = Point(
+                hy_point.x + turn_sign * R * (-math.sin(theta_hy)),
+                hy_point.y + turn_sign * R * (math.cos(theta_hy)),
+            )
+            phi_start = math.atan2(
+                hy_point.y - center.y, hy_point.x - center.x
+            )
+            # QZ（曲中点）：圆曲线弧长的中点。
+            qz_mileage = hy_mileage + ly / 2.0
+            qz_point, _ = circular_point(
+                ly / 2.0, center, R, phi_start, theta_hy, turn_sign
+            )
+
             result[i] = {
                 "jd_index": i,
                 "R": R,
@@ -202,15 +223,50 @@ class RouteBuilder:
                 "t2": t2,
                 "phi_arc": phi_arc,
                 "ly": ly,
+                "theta_hy": theta_hy,
+                "center": center,
+                "phi_start": phi_start,
                 "zh_point": zh_point,
                 "hz_point": hz_point,
                 "hy_point": hy_point,
                 "yh_point": yh_point,
+                "qz_point": qz_point,
                 "zh_mileage": zh_mileage,
                 "hy_mileage": hy_mileage,
                 "yh_mileage": yh_mileage,
                 "hz_mileage": hz_mileage,
+                "qz_mileage": qz_mileage,
             }
+
+            # 暴露完整的曲线参数（含五大主点里程/坐标），供 UI 标注等使用。
+            self.curve_params.append(
+                CurveParams(
+                    jd_index=i,
+                    alpha=alpha,
+                    turn_direction=TurnDirection(turn_sign),
+                    beta1=beta1,
+                    beta2=beta2,
+                    p1=p1,
+                    p2=p2,
+                    m1=m1,
+                    m2=m2,
+                    t1=t1,
+                    t2=t2,
+                    ly=ly,
+                    theta_in=theta_in,
+                    theta_out=theta_out,
+                    zh_mileage=zh_mileage,
+                    zh_point=zh_point,
+                    hy_mileage=hy_mileage,
+                    hy_point=hy_point,
+                    yh_mileage=yh_mileage,
+                    yh_point=yh_point,
+                    hz_mileage=hz_mileage,
+                    hz_point=hz_point,
+                    qz_mileage=qz_mileage,
+                    qz_point=qz_point,
+                )
+            )
 
         return result
 
@@ -308,7 +364,6 @@ class RouteBuilder:
         turn_sign: int = cd["turn_sign"]
         theta_in: float = cd["theta_in"]
         theta_out: float = cd["theta_out"]
-        beta1: float = cd["beta1"]
 
         zh_point: Point = cd["zh_point"]
         hy_point: Point = cd["hy_point"]
@@ -339,14 +394,11 @@ class RouteBuilder:
 
         # --- Circular arc (HY -> YH) ------------------------------------
         if ly > _EPS:
-            theta_hy = theta_in + turn_sign * beta1
-            center = Point(
-                hy_point.x + turn_sign * R * (-math.sin(theta_hy)),
-                hy_point.y + turn_sign * R * (math.cos(theta_hy)),
-            )
-            phi_start = math.atan2(
-                hy_point.y - center.y, hy_point.x - center.x
-            )
+            # 圆心 / 圆弧起角已在 _compute_all_curve_data 中与 QZ 共用同一份，
+            # 直接复用，避免两处重算导致几何不一致。
+            theta_hy = cd["theta_hy"]
+            center = cd["center"]
+            phi_start = cd["phi_start"]
             self.segments.append(
                 Segment(
                     seg_type=SegmentType.CIRCULAR,

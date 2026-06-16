@@ -159,6 +159,8 @@ class CurveParams:
         yh_point: YH point.
         hz_mileage: HZ (transition-to-straight) mileage.
         hz_point: HZ point.
+        qz_mileage: QZ (midpoint of the circular curve) mileage.
+        qz_point: QZ point.
     """
     jd_index: int
     alpha: float
@@ -182,6 +184,8 @@ class CurveParams:
     yh_point: Point = field(default_factory=Point)
     hz_mileage: float = 0.0
     hz_point: Point = field(default_factory=Point)
+    qz_mileage: float = 0.0
+    qz_point: Point = field(default_factory=Point)
 
 
 # ---------------------------------------------------------------------------
