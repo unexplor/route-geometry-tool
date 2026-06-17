@@ -150,9 +150,14 @@ class RouteBuilder:
                 )
             ly = R * phi_arc
 
-            # Tangent lengths.
-            t1 = (R + p1) * math.tan(alpha / 2.0) + m1
-            t2 = (R + p2) * math.tan(alpha / 2.0) + m2
+            # Tangent lengths (不对称基本型)。
+            # 圆心须同时满足"到入射切线 R+p1、到出射切线 R+p2"，由此解得
+            # 切线长。修正项 (p2-p1)/sin α 在 p1=p2(对称)时为 0，退化为
+            # 对称公式 (R+p)tan(α/2)+m。此前直接各侧代换 p1/p2 漏掉此项，
+            # 导致 l1≠l2 时 YH 不落在圆曲线上(偏差可达米级)。
+            sin_a = math.sin(alpha)
+            t1 = (R + p1) * math.tan(alpha / 2.0) + m1 + (p2 - p1) / sin_a
+            t2 = (R + p2) * math.tan(alpha / 2.0) + m2 + (p1 - p2) / sin_a
 
             # Control points.
             # ZH 在 JD 后方（沿入射方向退 T1）：JD - T1·d_in
